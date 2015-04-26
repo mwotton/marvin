@@ -10,7 +10,8 @@ import qualified Data.Text.IO        as TIO
 import           System.Cmd
 import           System.Directory
 import           System.Environment  (getArgs)
-import           System.Exit         (ExitCode (ExitSuccess))
+import           System.Exit         (ExitCode (ExitSuccess), exitFailure,
+                                      exitSuccess)
 
 main :: IO ()
 main = do
@@ -29,12 +30,9 @@ main = do
   let justPkgs' = map (T.replace "," "" . T.replace " ==" "-") useful
   createDirectoryIfMissing False "./marvin-tmp"
   let (ignored, justPkgs) = partition ignorable justPkgs'
---  print ("ignoring", ignored)
 
   results <- (`mapM` justPkgs) $ \pkg -> do
     print ("running with", pkg)
---    let dirname = ("./marvin-tmp/" ++ T.unpack pkg)
-    -- createDirectoryIfMissing False dirname
     origSandbox <- (<> "/.cabal-sandbox") <$> getCurrentDirectory
 
     withCurrDir "marvin-tmp" $ do
@@ -54,9 +52,11 @@ main = do
   putStrLn ""
   putStrLn "Failures"
   TIO.putStr $ T.unlines $ map fst failures
+  if failures == []
+     then exitSuccess
+     else exitFailure
 
-
-
+withCurrDir :: FilePath -> IO b -> IO b
 withCurrDir x f = do
   orig <- getCurrentDirectory
   bracket_ (setCurrentDirectory x) (setCurrentDirectory orig) f
